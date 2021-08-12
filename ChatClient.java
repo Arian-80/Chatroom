@@ -88,23 +88,23 @@ public class ChatClient extends Client {
 
 		private void processServerInput () {
 			// An instance of the BufferedReader is created, which gives the client the ability to receive messages from the server.
-			// try statement with automatic resource management - closes the BufferedReader as soon as the program is done with it.
-			try (BufferedReader serverInputStream =
-						 new BufferedReader(new InputStreamReader(ChatClient.this.getServerSocket().getInputStream()))) {
+			try (BufferedReader serverInputStream = new BufferedReader(new InputStreamReader(ChatClient.this.getServerSocket().getInputStream()))) {
 				// In an infinite while loop, the server's messages are constantly being received and printed.
 				while (true) {
 					String serverInput = serverInputStream.readLine();
 					System.out.println(serverInput);
 				}
-			// If there is an IO exception, the program checks whether the exitActivated boolean flag is set to true.
-			// If it is, this indicates that the user entered "exit" on their command line. The shutdown procedure takes place..-
-			// -.. in processClientInput(), as that is where the client's input from the command line is monitored.
-			// If exitActivated is still set to false, then this indicates that the server has shut down and hence the client is notified.
-			// The program then calls the exit() method, which shuts the program down.
+				// If there is an IO exception, the program checks whether the exitActivated boolean flag is set to true.
+				// If it is, this indicates that the user entered "exit" on their command line. The shutdown procedure takes place..-
+				// -.. in processClientInput(), as that is where the client's input from the command line is monitored.
+				// If exitActivated is still set to false, then this indicates that the server has shut down and hence the client is notified.
+				// The program then calls the exit() method, which shuts the program down.
+				// Finally, try to close the serverInputStream regardless of the outcome of the previous procedure.
+				// If an IO exception occurs in the process of closing the BufferedReader, ignore it as it is redundant to try and handle that.
 			} catch (IOException exception) {
 				if (!isExitActivated()) {
 					System.out.println("Server has shut down.");
-					exit();
+					ChatClient.this.exit();
 				}
 			}
 		}

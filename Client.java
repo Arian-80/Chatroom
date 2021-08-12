@@ -175,7 +175,7 @@ public abstract class Client {
 			System.out.println("Connection successfully established! Server and port: " + getHostAddress() +
 					":" + getServerPort() + "");
 		} catch (IOException exception) {
-			System.out.println("Connection failed. Please ensure correct address and port has been entered.");
+			System.out.println("Connection failed - please ensure correct address and port has been entered. Exiting.");
 			exit();
 		} catch (IllegalArgumentException exception) {
 			System.out.println("Port outside of range (0 to 65535). Setting port to default.");
@@ -193,10 +193,8 @@ public abstract class Client {
 			getBroadcaster().close();
 			getServerSocket().close();
 		} catch (IOException | NullPointerException ignored) {
-		} finally {
-			System.out.println("Exiting the program...");
-			System.exit(1);
 		}
+		System.out.println("Exiting the program...");
+		System.exit(1);
 	}
-
 }
