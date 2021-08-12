@@ -53,8 +53,8 @@ public class ChatBot extends Client {
 		// If that is the case, call the processBotCommand() method and pass on the third element of the array in its lowercase form as an argument.
 		// If there is an ArrayIndexOutOfBounds exception, ignore it as it simply means the user has not entered enough words..-
 		// -.. which could possibly form a command (minimum 2 - e.g "Client: bot help").
-		String[] inputArray = serverInput.split("\\s");
 		try {
+			String[] inputArray = serverInput.split("\\s");
 			if (inputArray[1].equalsIgnoreCase("bot")) {
 				processBotCommand(inputArray[2].toLowerCase());
 			}

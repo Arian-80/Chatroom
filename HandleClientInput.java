@@ -14,13 +14,17 @@ public class HandleClientInput implements Runnable {
 	// Private final field which holds an object of the HandleServerOutput inner class, "serverOutputHandler".
 	private final HandleServerOutput serverOutputHandler;
 
-	public HandleClientInput (Socket clientSocket) {
-		// Set the value of the clientSocket field to the clientSocket argument passed on as this object is created
+	// Private final field which holds the instance of the server it was created through.
+	private final ChatServer server;
+
+	public HandleClientInput (Socket clientSocket, ChatServer server) {
+		// Set the value of the clientSocket field to the 'clientSocket' argument passed on as this object is created
 		this.clientSocket = clientSocket;
 		// Set the value of the serverOutputHandler field to a new instance of the HandleServerOutput class.
 		this.serverOutputHandler = new HandleServerOutput();
+		// Set the value of the server field to the 'server' argument passed on as this object is created
+		this.server = server;
 	}
-
 
 	private Socket getClientSocket () {
 		// Returns the client's socket.
@@ -32,6 +36,10 @@ public class HandleClientInput implements Runnable {
 		return this.serverOutputHandler;
 	}
 
+	private ChatServer getServer () {
+		// Returns the ChatServer object "server".
+		return this.server;
+	}
 
 	private void handleInput (Socket clientSocket) {
 		// Creates a new instance of the BufferedReader which allows the server to receive messages from the client.
@@ -40,8 +48,8 @@ public class HandleClientInput implements Runnable {
 		// This is because the user can exit the program if they wish by entering "exit".
 		// If there is an IO or a NullPointer exception, inform the user about this error and let them know their connection is being closed.
 		// If this is the case, close the client's connection by closing their socket and ignoring the IO exception that may occur.
-
-		// try statement with automatic resource management - closes the BufferedReader as soon as the program is done with it.
+		// Finally, try to close the BufferedReader object and if an IO exception occurs there, ..-
+		// -.. ignore it as it is redundant to try and handle it.
 		try (BufferedReader clientInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 			String clientInput;
 			while (!(clientInput = clientInputStream.readLine()).equalsIgnoreCase("exit")) {
@@ -62,7 +70,7 @@ public class HandleClientInput implements Runnable {
 		handleInput(getClientSocket());
 	}
 
-	private static class HandleServerOutput {
+	private class HandleServerOutput {
 
 		// Private field which holds a PrintWriter object
 		private PrintWriter broadcaster;
@@ -77,7 +85,7 @@ public class HandleClientInput implements Runnable {
 			// Go through each of the connections and call the broadcast() method with the client's socket (different for each connection)..-
 			// -.. and the client's input passed on to this method as arguments.
 			// If the broadcast() method returns false, remove that specific socket from the connections list.
-			List<Socket> connections = ChatServer.getListOfConnections();
+			List<Socket> connections = HandleClientInput.this.getServer().getListOfConnections();
 			connections.removeIf(connection -> !broadcast(connection, clientInput));
 		}
 
