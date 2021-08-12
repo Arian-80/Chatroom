@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.List;
 
 public class HandleClientInput implements Runnable {
@@ -85,7 +86,10 @@ public class HandleClientInput implements Runnable {
 			// Go through each of the connections and call the broadcast() method with the client's socket (different for each connection)..-
 			// -.. and the client's input passed on to this method as arguments.
 			// If the broadcast() method returns false, remove that specific socket from the connections list.
-			List<Socket> connections = HandleClientInput.this.getServer().getListOfConnections();
+			List<Socket> connections = new ArrayList<>();
+			for (Connection connection : HandleClientInput.this.getServer().getListOfConnections()) {
+				connections.add(connection.getSocket());
+			}
 			connections.removeIf(connection -> !broadcast(connection, clientInput));
 		}
 

@@ -10,7 +10,9 @@ public class ChatServer {
     // List of all available ports
     private final List<Integer> listOfPorts = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
     // List of all sockets connected to the server
-    private final List<Socket> listOfConnections = new ArrayList<>();
+    private final List<Connection> listOfConnections = new ArrayList<>();
+    // Number of anonymous users
+    private int anonymousUsers = 0;
     // Boolean flag which dictates whether the server is running
     private boolean serverRunning;
     // Holds the port number of the server
@@ -31,7 +33,7 @@ public class ChatServer {
     }
 
     // Getter method for the list of connections, which returns a list of all sockets connected to the server.
-    public List<Socket> getListOfConnections() {
+    public List<Connection> getListOfConnections() {
         return this.listOfConnections;
     }
 
@@ -72,6 +74,11 @@ public class ChatServer {
     // Getter method for the server socket
     private ServerSocket getServerSocket() {
         return this.serverSocket;
+    }
+
+    // Getter method for the number of anonymous users
+    private int getAnonymousUsers() {
+        return this.anonymousUsers;
     }
 
     // Getter method for the serverRunning boolean flag
@@ -204,11 +211,34 @@ public class ChatServer {
         // The client's socket (connection) is added to the list of connections accepted by the server.
         // The server is notified that the connection is accepted, along with some extra details.
         // The handleInput() method is then called, which takes the client's socket as an argument.
-        private void acceptConnections() {
-            ChatServer.this.getListOfConnections().add(this.clientSocket);
+        private void processConnection() {
+            ChatServer.this.getListOfConnections().add(new Connection(this.clientSocket, this.clientSocket.getInetAddress(), getName()));
             System.out.println("Connection accepted on ports: " + ChatServer.this.getServerSocket().getLocalPort() + " ; "
                     + this.clientSocket.getPort());
             handleInput(this.clientSocket);
+        }
+
+        private String getName() {
+            String name;
+            try (BufferedReader clientInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+                do {
+                    name = clientInputStream.readLine();
+                } while (!isLegalName(name));
+                return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + anonymousUsers));
+            } catch (IOException e) {
+                System.out.println("Unable to proceed. Please try again.");
+                exit();
+            }
+            return null;
+        }
+
+        private boolean isLegalName(String name) {
+            for (Connection connection : listOfConnections) {
+                if (connection.getName().equalsIgnoreCase(name)) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private void handleInput(Socket clientSocket) {
@@ -220,8 +250,8 @@ public class ChatServer {
         }
 
         public void run() {
-            // Executes the acceptConnections() method.
-            acceptConnections();
+            // Executes the processConnection() method.
+            processConnection();
         }
 
     }

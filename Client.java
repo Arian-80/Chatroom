@@ -1,8 +1,14 @@
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Scanner;
 
 public abstract class Client {
 
@@ -83,6 +89,43 @@ public abstract class Client {
 		// The setUpBroadcaster() method is then called, which gives the client the ability to send messages to the server
 		establishConnection(args);
 		setUpBroadcaster();
+		getDetails();
+	}
+
+	private void getDetails() {
+		BufferedReader userInputReader = new BufferedReader(new InputStreamReader(System.in));
+		try (BufferedReader serverInputReader = new BufferedReader(new InputStreamReader(this.getServerSocket().getInputStream()))){
+			String name;
+			boolean legalName = false;
+			System.out.println("Please enter a name to proceed with:");
+			try {
+				while (!legalName) {
+					name = userInputReader.readLine();
+					legalName = isLegalName(name, serverInputReader);
+				}
+			} catch (IOException e) {
+				System.out.println("Unable to proceed. Please try again.");
+				ResourceCloser.closeCloseables(List.of(userInputReader));
+				exit();
+			}
+		} catch (IOException e) {
+			System.out.println("Unable to proceed. Please try again.");
+			ResourceCloser.closeCloseables(List.of(userInputReader));
+			exit();
+		}
+
+	}
+
+	private boolean isLegalName(String name, BufferedReader serverInputReader) {
+		try {
+			getBroadcaster().println(name);
+			return (serverInputReader.read() == 1);
+		} catch (IOException e) {
+			System.out.println("Unable to proceed. Please try again.");
+			ResourceCloser.closeCloseables(List.of(serverInputReader));
+			exit();
+		}
+		return false;
 	}
 
 	private void validateAndSetValues (String[] args, String toCheck, int index) {
@@ -185,15 +228,9 @@ public abstract class Client {
 	}
 
 	protected void exit () {
-		// Tries to close the PrintWriter object and the server socket
-		// Ignores any IO exception or NullPointer exception that might occur, ..-
-		// as for example, the latter could occur if the PrintWriter object has not been initialised yet.
+		// Tries to close the PrintWriter object and the server socket.
 		// Finally, the program shuts down.
-		try {
-			getBroadcaster().close();
-			getServerSocket().close();
-		} catch (IOException | NullPointerException ignored) {
-		}
+		ResourceCloser.closeCloseables(List.of(getBroadcaster(), getServerSocket()));
 		System.out.println("Exiting the program...");
 		System.exit(1);
 	}

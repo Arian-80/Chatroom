@@ -61,7 +61,7 @@ public class ChatClient extends Client {
 				if ((userInput = userInputStream.readLine()).equalsIgnoreCase("exit")) break;
 				super.getBroadcaster().println(userInput);
 			} catch (IOException exception) {
-				System.out.println("Error occurred with processing input. Please try again later.");
+				System.out.println("Error occurred with processing input. Please try again.");
 				break;
 			}
 		}
@@ -71,9 +71,7 @@ public class ChatClient extends Client {
 		try {
 			userInputStream.close();
 		} catch (IOException ignored) {
-		} finally {
-			exit();
-		}
+		} exit();
 	}
 
 	@Override
