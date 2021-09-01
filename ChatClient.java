@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
 
 public class ChatClient extends Client {
 
@@ -49,29 +50,22 @@ public class ChatClient extends Client {
 	private void processClientInput () {
 		// This runs on the main thread.
 
-		// A new BufferedReader object is created to take the client's input from the command line.
-		// The client's input from the command line is constantly monitored in an infinite while loop.
+		// The client's input from the command line is constantly monitored in a while loop as long as the "exit conditions" have not been activated.
 		// If there is an IO exception, the client is notified and the loop breaks, advancing on to the process of shutting the program down.
 		// If the client enters "exit", then the loop breaks, advancing on to the process of shutting the program down.
 		// Otherwise, the broadcaster set up in the superclass is used to send the client's input to the server.
-		BufferedReader userInputStream = new BufferedReader(new InputStreamReader(System.in));
 		String userInput;
-		while (true) {
+		while (!isExitActivated()) {
 			try {
-				if ((userInput = userInputStream.readLine()).equalsIgnoreCase("exit")) break;
+				if ((userInput = super.getUserInputReader().readLine()).equalsIgnoreCase("exit")) break;
 				super.getBroadcaster().println(userInput);
 			} catch (IOException exception) {
 				System.out.println("Error occurred with processing input. Please try again.");
 				break;
 			}
 		}
-		// As the loop is broken, the program attempts to close the BufferedReader
-		// If an IO exception occurs in the process, the program ignores it.
-		// The exit() method is then called, which shuts the program down.
-		try {
-			userInputStream.close();
-		} catch (IOException ignored) {
-		} exit();
+		// As the loop is broken, the exit() method is called, which shuts the program down.
+		exit();
 	}
 
 	@Override
@@ -85,12 +79,14 @@ public class ChatClient extends Client {
 		// This runs on a separate thread.
 
 		private void processServerInput () {
-			// An instance of the BufferedReader is created, which gives the client the ability to receive messages from the server.
-			try (BufferedReader serverInputStream = new BufferedReader(new InputStreamReader(ChatClient.this.getServerSocket().getInputStream()))) {
-				// In an infinite while loop, the server's messages are constantly being received and printed.
+			BufferedReader serverInputStream = ChatClient.super.getServerInputReader();
+			// In an infinite while loop, the server's messages are constantly being received and printed.
+			try {
 				while (true) {
 					String serverInput = serverInputStream.readLine();
-					System.out.println(serverInput);
+					if (serverInput != null) {
+						System.out.println(serverInput);
+					}
 				}
 				// If there is an IO exception, the program checks whether the exitActivated boolean flag is set to true.
 				// If it is, this indicates that the user entered "exit" on their command line. The shutdown procedure takes place..-
@@ -100,7 +96,7 @@ public class ChatClient extends Client {
 				// Finally, try to close the serverInputStream regardless of the outcome of the previous procedure.
 				// If an IO exception occurs in the process of closing the BufferedReader, ignore it as it is redundant to try and handle that.
 			} catch (IOException exception) {
-				if (!isExitActivated()) {
+				if (!ChatClient.this.isExitActivated()) {
 					System.out.println("Server has shut down.");
 					ChatClient.this.exit();
 				}

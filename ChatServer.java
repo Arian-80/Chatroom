@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -95,7 +96,6 @@ public class ChatServer {
         // Run a set of methods in order.
         checkArgs(args);
         setServerSocket(0);
-        // Add the current instance to the 'LIST_SERVERS' field.
         issueConnections();
     }
 
@@ -149,13 +149,7 @@ public class ChatServer {
         // Runs the stopServerProcesses() method which causes the boolean flag serverRunning to be set to false.
         // Notifies the user that the server is successfully shut down.
         stopServerProcesses();
-        try {
-            // Attempt to close the server socket.
-            // If unsuccessful and an IO exception occurs, ignore the exception and exit the system anyway with status 0..-
-            // -.. as that is the purpose of this method.
-            getServerSocket().close();
-        } catch (IOException ignored) {
-        }
+        ResourceCloser.closeCloseables(List.of(getServerSocket()));
         System.out.println("Server successfully shut down.");
         System.exit(0);
     }
@@ -195,6 +189,12 @@ public class ChatServer {
 
         // Private field which holds the client's socket.
         private Socket clientSocket;
+        // Private field which holds the client's connection
+        private Connection clientConnection;
+        // Private field which holds the broadcaster to the client
+        private PrintWriter broadcaster;
+        // Private field which holds the client's input stream
+        private BufferedReader clientInputStream;
 
         private ConnectionHandler() {
             // Looks for a new connection and accepts it as soon as there is a connection attempt.
@@ -208,32 +208,81 @@ public class ChatServer {
             }
         }
 
+        private Socket getClientSocket() {
+            return this.clientSocket;
+        }
+
+        private Connection getClientConnection() {
+            return this.clientConnection;
+        }
+
+        private boolean setClientInputStream() {
+            try {
+                this.clientInputStream = new BufferedReader(new InputStreamReader(getClientSocket().getInputStream()));
+                return true;
+            } catch (IOException exception) {
+                ResourceCloser.closeCloseables(List.of(getBroadcaster()));
+                return false;
+            }
+        }
+
+        private BufferedReader getClientInputStream() {
+            return this.clientInputStream;
+        }
+
+        private boolean setBroadcaster() {
+            try {
+                this.broadcaster = new PrintWriter(getClientSocket().getOutputStream(), true);
+                return true;
+            } catch (IOException exception) {
+                return false;
+            }
+        }
+
+        private PrintWriter getBroadcaster() {
+            return this.broadcaster;
+        }
+
+
         // The client's socket (connection) is added to the list of connections accepted by the server.
         // The server is notified that the connection is accepted, along with some extra details.
         // The handleInput() method is then called, which takes the client's socket as an argument.
         private void processConnection() {
-            ChatServer.this.getListOfConnections().add(new Connection(this.clientSocket, this.clientSocket.getInetAddress(), getName()));
+            Socket clientSocket = getClientSocket();
+            String name = getName();
+            if (name == null) {
+                return;
+            }
+            clientConnection = new Connection(clientSocket, clientSocket.getInetAddress(), name, getBroadcaster(),
+                    getClientInputStream(), ChatServer.this);
+            ChatServer.this.getListOfConnections().add(getClientConnection());
             System.out.println("Connection accepted on ports: " + ChatServer.this.getServerSocket().getLocalPort() + " ; "
-                    + this.clientSocket.getPort());
-            handleInput(this.clientSocket);
+                    + getClientSocket().getPort());
+            handleInput();
         }
 
         private String getName() {
             String name;
-            try (BufferedReader clientInputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
-                do {
+            BufferedReader clientInputStream = getClientInputStream();
+            PrintWriter broadcaster = getBroadcaster();
+            try {
+                name = clientInputStream.readLine();
+                while (!isLegalName(name)) {
+                    broadcaster.println(0);
                     name = clientInputStream.readLine();
-                } while (!isLegalName(name));
-                return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + anonymousUsers));
+                }
+                broadcaster.println(1);
+                // If not null, return name. Otherwise, return anonymous format.
+                // Format of anonymous name is so that users can't maliciously/unintentionally impersonate other anonymous users.
+                return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + ChatServer.this.getAnonymousUsers()));
             } catch (IOException e) {
-                System.out.println("Unable to proceed. Please try again.");
-                exit();
+                ResourceCloser.closeCloseables(List.of(getClientSocket(), broadcaster, clientInputStream));
+                return null;
             }
-            return null;
         }
 
         private boolean isLegalName(String name) {
-            for (Connection connection : listOfConnections) {
+            for (Connection connection : ChatServer.this.getListOfConnections()) {
                 if (connection.getName().equalsIgnoreCase(name)) {
                     return false;
                 }
@@ -241,15 +290,17 @@ public class ChatServer {
             return true;
         }
 
-        private void handleInput(Socket clientSocket) {
+        private void handleInput() {
             // An instance of the HandleClientInput class is made.
             // A thread is created and started which runs that instance.
-            HandleClientInput inputHandler = new HandleClientInput(clientSocket, ChatServer.this);
+            HandleClientInput inputHandler = new HandleClientInput(getClientConnection());
             Thread inputHandlerThread = new Thread(inputHandler);
             inputHandlerThread.start();
         }
 
         public void run() {
+            // Sets up the broadcaster and the client's input stream. If either return false, return as it means they were not set up correctly.
+            if (!setBroadcaster() || !setClientInputStream()) return;
             // Executes the processConnection() method.
             processConnection();
         }

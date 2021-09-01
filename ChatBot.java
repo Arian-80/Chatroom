@@ -27,21 +27,20 @@ public class ChatBot extends Client {
 	}
 
 	private void handleServerInput () {
-		// Creates a new instance of the BufferedReader, which allows the bot to receive messages from the server.
 		// The server's input is constantly stored in the serverInput variable, and the processServerInput() method is called, ..-
 		// -.. which takes the serverInput variable as an argument. This is done in an infinite while true loop.
 		// If there is an IO exception, it suggests that the server has shut down. The user is notified that input is no longer ..-
 		// -.. being received from the server, and hence the program is going to exit by calling the exit() method in the superclass.
 
 		// try statement with automatic resource management - closes the BufferedReader as soon as the program is done with it.
-		try (BufferedReader serverInputStream =
-					 new BufferedReader(new InputStreamReader(super.getServerSocket().getInputStream()))) {
+		BufferedReader serverInputStream = super.getServerInputReader();
+		try {
 			while (true) {
 				String serverInput = serverInputStream.readLine();
 				processServerInput(serverInput);
 			}
 		} catch (IOException exception) {
-			System.out.println("Unable to receive input from the server.");
+			System.out.println("Server has shut down.");
 		}
 		super.exit();
 	}

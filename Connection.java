@@ -1,16 +1,24 @@
+import java.io.BufferedReader;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 
 public class Connection {
 
-    private Socket socket;
-    private InetAddress address;
-    private String name;
+    private final Socket socket;
+    private final InetAddress address;
+    private final String name;
+    private final PrintWriter broadcaster;
+    private final BufferedReader clientInputStream;
+    private final ChatServer chatServer;
 
-    public Connection (Socket socket, InetAddress address, String name) {
+    public Connection(Socket socket, InetAddress address, String name, PrintWriter broadcaster, BufferedReader clientInputStream, ChatServer chatServer) {
         this.socket = socket;
         this.address = address;
         this.name = name;
+        this.broadcaster = broadcaster;
+        this.clientInputStream = clientInputStream;
+        this.chatServer = chatServer;
     }
 
     public Socket getSocket() {
@@ -23,5 +31,17 @@ public class Connection {
 
     public String getName() {
         return this.name;
+    }
+
+    public PrintWriter getBroadcaster() {
+        return this.broadcaster;
+    }
+
+    public BufferedReader getClientInputStream() {
+        return this.clientInputStream;
+    }
+
+    public ChatServer getChatServer() {
+        return this.chatServer;
     }
 }

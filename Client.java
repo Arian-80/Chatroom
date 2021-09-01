@@ -1,14 +1,8 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public abstract class Client {
 
@@ -20,6 +14,10 @@ public abstract class Client {
 	private int serverPort;
 	// Holds a PrintWriter object, "broadcaster"
 	private PrintWriter broadcaster;
+
+	private BufferedReader userInputReader;
+
+	private BufferedReader serverInputReader;
 
 	protected Client () {
 		// Try setting the value of the hostAddress field to localhost.
@@ -70,7 +68,7 @@ public abstract class Client {
 		return this.broadcaster;
 	}
 
-	protected void setUpBroadcaster () {
+	private void setBroadcaster() {
 		// Sets up the broadcaster by assigning it to a new PrintWriter instance.
 		// This allows the client to have the ability to send messages to the server.
 		// Auto flush is set to true.
@@ -84,42 +82,58 @@ public abstract class Client {
 		}
 	}
 
+	private void setServerInputReader() {
+		try {
+			this.serverInputReader = new BufferedReader(new InputStreamReader(this.getServerSocket().getInputStream()));
+		} catch (IOException exception) {
+			System.out.println("Unable to proceed. Please try again.");
+			ResourceCloser.closeCloseables(List.of(getServerSocket(), getUserInputReader()));
+			System.exit(-1);
+		}
+	}
+
+	protected BufferedReader getServerInputReader() {
+		return this.serverInputReader;
+	}
+
+	private void setUserInputReader() {
+		this.userInputReader = new BufferedReader(new InputStreamReader(System.in));
+	}
+
+	protected BufferedReader getUserInputReader() {
+		return this.userInputReader;
+	}
+
 	protected void startProcess (String[] args) {
 		// Calls the establishConnection() method which takes the command line args passed on to this method as an argument
-		// The setUpBroadcaster() method is then called, which gives the client the ability to send messages to the server
+		// The setBroadcaster() method is then called, which gives the client the ability to send messages to the server
 		establishConnection(args);
-		setUpBroadcaster();
+		setUserInputReader();
+		setServerInputReader();
+		setBroadcaster();
 		getDetails();
 	}
 
 	private void getDetails() {
-		BufferedReader userInputReader = new BufferedReader(new InputStreamReader(System.in));
-		try (BufferedReader serverInputReader = new BufferedReader(new InputStreamReader(this.getServerSocket().getInputStream()))){
-			String name;
-			boolean legalName = false;
-			System.out.println("Please enter a name to proceed with:");
-			try {
-				while (!legalName) {
-					name = userInputReader.readLine();
-					legalName = isLegalName(name, serverInputReader);
-				}
-			} catch (IOException e) {
-				System.out.println("Unable to proceed. Please try again.");
-				ResourceCloser.closeCloseables(List.of(userInputReader));
-				exit();
+		BufferedReader userInputReader = getUserInputReader();
+		System.out.println("Please enter a name to proceed with:");
+		try {
+			String name = userInputReader.readLine();
+			while (!isLegalName(name, serverInputReader)) {
+				System.out.println("Name is already taken. Please choose another name:");
+				name = userInputReader.readLine();
 			}
-		} catch (IOException e) {
-			System.out.println("Unable to proceed. Please try again.");
-			ResourceCloser.closeCloseables(List.of(userInputReader));
+			System.out.println("Name successfully chosen!");
+		} catch (IOException exception) {
+			System.out.println("Unable to proceed.");
 			exit();
 		}
-
 	}
 
 	private boolean isLegalName(String name, BufferedReader serverInputReader) {
 		try {
 			getBroadcaster().println(name);
-			return (serverInputReader.read() == 1);
+			return (serverInputReader.readLine().equals("1"));
 		} catch (IOException e) {
 			System.out.println("Unable to proceed. Please try again.");
 			ResourceCloser.closeCloseables(List.of(serverInputReader));
@@ -208,8 +222,7 @@ public abstract class Client {
 		// If successful, the user is notified that the connection has been successfully established, ..-
 		// -.. and they are also told what address and port they have connected to.
 		// If there is an IO exception, the program notifies the user and suggests that the user ensures the correct address and port..-
-		// -.. have been entered, since that is likely the cause of the IO exception. The program then calls the exit() method..-
-		// -.. which shuts the program down.
+		// -.. have been entered, since that is likely the cause of the IO exception. The program then exits.
 		// If there is an IllegalArgument exception, it means that the port entered is outside the accepted range.
 		// The user is notified regarding this matter, and they are also told that the port is being set to default.
 		// The port is set to default and this method is called again.
@@ -219,7 +232,8 @@ public abstract class Client {
 					":" + getServerPort() + "");
 		} catch (IOException exception) {
 			System.out.println("Connection failed - please ensure correct address and port has been entered.");
-			exit();
+			System.out.println("Exiting the program...");
+			System.exit(1);
 		} catch (IllegalArgumentException exception) {
 			System.out.println("Port outside of range (0 to 65535). Setting port to default.");
 			setServerPort(14001);
@@ -230,7 +244,10 @@ public abstract class Client {
 	protected void exit () {
 		// Tries to close the PrintWriter object and the server socket.
 		// Finally, the program shuts down.
-		ResourceCloser.closeCloseables(List.of(getBroadcaster(), getServerSocket()));
+
+		// Closing getUserInputReader() forces the program to wait for the readLine() in ChatClient under the method of processClientInput().
+		// Therefore, that stream is not being closed.
+		ResourceCloser.closeCloseables(List.of(getBroadcaster(), getServerSocket(), getServerInputReader()));
 		System.out.println("Exiting the program...");
 		System.exit(1);
 	}
