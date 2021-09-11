@@ -38,13 +38,18 @@ public class ChatServer {
         return this.listOfConnections;
     }
 
+    // Getter method for the list of default server ports
+    private List<Integer> getListOfPorts () {
+        return this.listOfPorts;
+    }
+
     private void setServerSocket(int head) {
         // Creates a new server socket and assigns it to the serverSocket field.
         // This method also allows the socket to be bound even if a previous connection is in the timeout state.
         // The program shuts down if the server socket is not successfully set up.
         // If the user enters a port number outside the legal range, the default port value is set and they are informed;..-
         // -.. then this method is called again
-        if (head > 9) {
+        if (head > (getListOfPorts().size() - 1)) {
             System.out.println("Maximum number of concurrent servers running reached. (10)\nExiting...");
             System.exit(0);
         }
@@ -53,11 +58,11 @@ public class ChatServer {
             this.serverSocket.setReuseAddress(true);
             System.out.println("Socket setup successful! Port: " + getPortNumber());
         } catch (IOException exception) {
-            setPortNumber(listOfPorts.get(head));
+            setPortNumber(getListOfPorts().get(head));
             setServerSocket(++head);
         } catch (IllegalArgumentException exception) {
             System.out.println("Port outside of range (0 to 65535). Setting port automatically.");
-            setPortNumber(0);
+            setPortNumber(getListOfPorts().get(0));
             setServerSocket(0);
         }
     }

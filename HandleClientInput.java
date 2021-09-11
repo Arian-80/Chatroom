@@ -46,7 +46,7 @@ public class HandleClientInput implements Runnable {
 			while (!(clientInput = clientInputStream.readLine()).equalsIgnoreCase("exit")) {
 				synchronized (this) {
 					for (Connection connection : clientConnection.getChatServer().getListOfConnections()) {
-						if (!(getServerOutputHandler().broadcast(connection.getSocket(), clientInput))) {
+						if (!(getServerOutputHandler().broadcast(connection.getSocket(), clientInput, clientConnection.getName()))) {
 							toRemove.add(connection);
 						}
 					}
@@ -56,8 +56,8 @@ public class HandleClientInput implements Runnable {
 				}
 			}
 		} catch (IOException | NullPointerException exception) {
-			String toBroadcast = "Server: [ERROR] Failed to continue process. Closing connection.";
-			getServerOutputHandler().broadcast(clientSocket, toBroadcast);
+			String toBroadcast = "[ERROR] Failed to continue process. Closing connection.";
+			getServerOutputHandler().serverBroadcast(clientSocket, toBroadcast);
 			ResourceCloser.closeCloseables(List.of(clientConnection.getSocket(), clientConnection.getBroadcaster(), clientConnection.getClientInputStream()));
 		}
 	}
@@ -91,11 +91,11 @@ public class HandleClientInput implements Runnable {
 //					(connection -> !broadcast(connection.getSocket(), clientInput));
 //		}
 
-		private boolean broadcast (Socket clientSocket, String toBroadcast) {
+		private boolean broadcast (Socket clientSocket, String toBroadcast, String name) {
 			/*
 			 * Parameters:
 			 * Socket clientSocket	: The client's socket
-			 * String toBroadcast	: The string to be broadcasted
+			 * String toBroadcast	: The string to be broadcast
 			 */
 
 			// Try to create a new PrintWriter instance and set autoFlush to true.
@@ -103,12 +103,21 @@ public class HandleClientInput implements Runnable {
 			// Return true if successful. If there is an IO exception, it suggests that this specific client has closed their connection.
 			// If this is the case, return false.
 			try {
-				broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
-				toBroadcast = ("Client: " + toBroadcast);
-				broadcaster.println(toBroadcast);
+				this.broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
+				toBroadcast = (name + ": " + toBroadcast);
+				this.broadcaster.println(toBroadcast);
 				return true;
 			} catch (IOException exception) {
 				return false;
+			}
+		}
+
+		private void serverBroadcast (Socket clientSocket, String toBroadcast) {
+			try {
+				this.broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
+				toBroadcast = ("\033[0;31mSERVER: " + toBroadcast + "\033[0m");
+				this.broadcaster.println(toBroadcast);
+			} catch (IOException ignored) {
 			}
 		}
 

@@ -6,6 +6,8 @@ import java.util.*;
 
 public abstract class Client {
 
+	// List of all available ports
+	private final List<Integer> listOfPorts = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
 	// Holds the server socket
 	private Socket serverSocket;
 	// Holds the host's address
@@ -30,6 +32,11 @@ public abstract class Client {
 		}
 		// The value of serverPort is set to default, which is 14001
 		this.serverPort = 14001;
+	}
+
+	private List<Integer> getListOfPorts() {
+		// Returns the list of default server ports
+		return this.listOfPorts;
 	}
 
 	protected Socket getServerSocket () {
@@ -214,10 +221,10 @@ public abstract class Client {
 		// Calls the validateArgs() method and passes on the command line args and index 0 (the start) as arguments.
 		// Sets up the server socket after the arguments have been validated.
 		validateArgs(args, 0);
-		setServerSocket();
+		setServerSocket(0);
 	}
 
-	private void setServerSocket () {
+	private void setServerSocket (int head) {
 		// Tries to set up the server socket with the values of the host address and server port fields.
 		// If successful, the user is notified that the connection has been successfully established, ..-
 		// -.. and they are also told what address and port they have connected to.
@@ -226,18 +233,24 @@ public abstract class Client {
 		// If there is an IllegalArgument exception, it means that the port entered is outside the accepted range.
 		// The user is notified regarding this matter, and they are also told that the port is being set to default.
 		// The port is set to default and this method is called again.
-		try {
-			this.serverSocket = new Socket(getHostAddress(), getServerPort());
-			System.out.println("Connection successfully established! Server and port: " + getHostAddress() +
-					":" + getServerPort() + "");
-		} catch (IOException exception) {
-			System.out.println("Connection failed - please ensure correct address and port has been entered.");
-			System.out.println("Exiting the program...");
+		if (head > (getListOfPorts().size() - 1)) {
+			System.out.println("\n\033[0;31mConnection failed - please ensure correct address and port have been entered.");
+			System.out.println("Exiting the program...\033[0m");
 			System.exit(1);
+		}
+		try {
+			System.out.println("Connecting to server " + (head + 1) + "...");
+			this.serverSocket = new Socket(getHostAddress(), getServerPort());
+			System.out.println("\033[0;32mConnection successfully established! Address : port: " + getHostAddress() +
+					" : " + getServerPort() + "\033[0m");
+		} catch (IOException exception) {
+			System.out.println("\033[0;31mConnection failed. Trying again...\033[0m");
+			setServerPort(getListOfPorts().get(head));
+			setServerSocket(++head);
 		} catch (IllegalArgumentException exception) {
 			System.out.println("Port outside of range (0 to 65535). Setting port to default.");
-			setServerPort(14001);
-			setServerSocket();
+			setServerPort(getListOfPorts().get(0));
+			setServerSocket(0);
 		}
 	}
 

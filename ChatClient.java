@@ -97,7 +97,7 @@ public class ChatClient extends Client {
 				// If an IO exception occurs in the process of closing the BufferedReader, ignore it as it is redundant to try and handle that.
 			} catch (IOException exception) {
 				if (!ChatClient.this.isExitActivated()) {
-					System.out.println("Server has shut down.");
+					System.out.println("\033[0;31mServer has shut down.\033[0m");
 					ChatClient.this.exit();
 				}
 			}
