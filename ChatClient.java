@@ -86,6 +86,9 @@ public class ChatClient extends Client {
 					String serverInput = serverInputStream.readLine();
 					if (serverInput != null) {
 						System.out.println(serverInput);
+						if (serverInput.startsWith("[SERVER]") && serverInput.contains("Disconnecting user")) {
+							ChatClient.this.exit();
+						}
 					}
 				}
 				// If there is an IO exception, the program checks whether the exitActivated boolean flag is set to true.

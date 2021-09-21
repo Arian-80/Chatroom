@@ -1,0 +1,41 @@
+Server shut down clients dont exit												FIXED
+- Partial fix. Will not be closing userInputReader, as by doing so it waits for readLine() in ChatClient processUserInput().
+
+First message after a client disconnects is not relayed to the client sending the message					FIXED
+
+
+Connection list won't update until a message is sent. Problematic when all leave at the same time				ALREADY BEST IMPLEMENTATION
+
+
+Go through every protected/public method and change to private if needed.							DONE
+
+
+Client's messages should be linked to their name - serverside									DONE
+
+__________________________________________________________________________________________________________________________________________________________________
+
+
+Alert everyone on user join.													DONE
+
+
+Upon joining a server, inform the user how many users are in that specific server.						DONE / Informed as "new user" has joined
+
+
+Bot command to view how many users are online at the moment.									DONE / Users can request it
+	- info on how to request provided upon user join									Done
+
+Make sure user's message does not contain "bad" words - filter									DONE
+
+
+Make sure user's message isn't empty.												DONE
+
+__________________________________________________________________________________________________________________________________________________________________
+
+
+Spam prevention - timeout between messages											NOT DONE
+
+
+Name length validation - character limit											NOT DONE
+
+
+Make sure every error message is red.												NOT DONE

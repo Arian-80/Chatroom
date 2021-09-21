@@ -233,23 +233,24 @@ public abstract class Client {
 		// If there is an IllegalArgument exception, it means that the port entered is outside the accepted range.
 		// The user is notified regarding this matter, and they are also told that the port is being set to default.
 		// The port is set to default and this method is called again.
-		if (head > (getListOfPorts().size() - 1)) {
+		List<Integer> listOfPorts = getListOfPorts();
+		if (head > (listOfPorts.size() - 1)) {
 			System.out.println("\n\033[0;31mConnection failed - please ensure correct address and port have been entered.");
 			System.out.println("Exiting the program...\033[0m");
 			System.exit(1);
 		}
 		try {
-			System.out.println("Connecting to server " + (head + 1) + "...");
+			System.out.println("Connecting to server port " + listOfPorts.get(head) + "...");
 			this.serverSocket = new Socket(getHostAddress(), getServerPort());
 			System.out.println("\033[0;32mConnection successfully established! Address : port: " + getHostAddress() +
 					" : " + getServerPort() + "\033[0m");
 		} catch (IOException exception) {
 			System.out.println("\033[0;31mConnection failed. Trying again...\033[0m");
-			setServerPort(getListOfPorts().get(head));
+			setServerPort(listOfPorts.get(head));
 			setServerSocket(++head);
 		} catch (IllegalArgumentException exception) {
 			System.out.println("Port outside of range (0 to 65535). Setting port to default.");
-			setServerPort(getListOfPorts().get(0));
+			setServerPort(listOfPorts.get(0));
 			setServerSocket(0);
 		}
 	}

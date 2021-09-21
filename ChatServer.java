@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -12,10 +9,10 @@ public class ChatServer {
     private final List<Integer> listOfPorts = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
     // List of all sockets connected to the server
     private final List<Connection> listOfConnections = new ArrayList<>();
+    // List of all bad words from a text file - singleton instance
+    private static List<String> listOfBadWords = null;
     // Number of anonymous users
     private int anonymousUsers = 0;
-    // Boolean flag which dictates whether the server is running
-    private boolean serverRunning;
     // Holds the port number of the server
     private int portNumber;
     // Holds the server socket
@@ -24,7 +21,6 @@ public class ChatServer {
     private ChatServer() {
         // Initialise the fields to their default values
         this.portNumber = 14001;
-        this.serverRunning = true;
     }
 
     public static void main(String[] args) {
@@ -87,20 +83,66 @@ public class ChatServer {
         return this.anonymousUsers;
     }
 
-    // Getter method for the serverRunning boolean flag
-    private boolean isServerRunning() {
-        return this.serverRunning;
+    // Getter method for the list of bad words.
+    public static List<String> getListOfBadWords () {
+        return ChatServer.listOfBadWords;
+    }
+
+    // Setter method for the list of bad words.
+    private void setListOfBadWords (String startDeclaration, String endDeclaration) {
+        try {
+            // Text file containing an inappropriate word on each line - should be located in the same file as the application.
+			/* Text file downloaded from:
+			https://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/
+			"Full List of Bad Words in English (Text File – One word per line)"
+			By James Parker
+			Edited slightly to fit the standards of this program.
+			 */
+            BufferedReader bufferedReader = new BufferedReader(new FileReader("bad_words.txt"));
+            createListOfBadWords(bufferedReader, ChatServer.listOfBadWords, startDeclaration, endDeclaration);
+        } catch (FileNotFoundException e) {
+            System.out.println("\033[0;31mbad_words text file not found. Shutting down.\033[0m");
+            stopServerProcesses();
+        }
+    }
+
+    private void createListOfBadWords (BufferedReader bufferedReader, List<String> list, String startDeclaration, String endDeclaration) {
+        String word;
+        try {
+            while (true) {
+                if (bufferedReader.readLine().startsWith(startDeclaration)) {
+                    break;
+                }
+            }
+            while ((word = bufferedReader.readLine()) != null && !(word.startsWith(endDeclaration))) {
+                if (word.length() < 3) {
+                    continue;
+                }
+                list.add(word.toLowerCase());
+            }
+        } catch (IOException exception) {
+            System.out.println("\033[0;31mCouldn't complete setting list of all inappropriate words. Shutting down.\033[0m");
+        }
+    }
+
+    // Increments the anonymousUsers field when an anonymous user joins
+    private void increaseAnonCount() {
+        this.anonymousUsers++;
     }
 
     // Sets the serverRunning boolean flag to false.
-    private void stopServerProcesses() {
-        this.serverRunning = false;
+    protected void stopServerProcesses() {
+        exit();
     }
 
     private void startProcess(String[] args) {
         // Run a set of methods in order.
         checkArgs(args);
         setServerSocket(0);
+        if (getListOfBadWords() == null) {
+            ChatServer.listOfBadWords = new ArrayList<>();
+            setListOfBadWords("-----------", "-----------");
+        }
         issueConnections();
     }
 
@@ -137,7 +179,7 @@ public class ChatServer {
         ServerInputHandler serverInputHandler = new ServerInputHandler();
         Thread serverInputHandlerThread = new Thread(serverInputHandler);
         serverInputHandlerThread.start();
-        while (isServerRunning()) {
+        while (true) {
             ConnectionHandler connectionHandler = new ConnectionHandler();
             try {
                 Thread connectionHandlerThread = new Thread(connectionHandler);
@@ -151,9 +193,7 @@ public class ChatServer {
 
     // This method is run when the server wants to shut down.
     private void exit() {
-        // Runs the stopServerProcesses() method which causes the boolean flag serverRunning to be set to false.
         // Notifies the user that the server is successfully shut down.
-        stopServerProcesses();
         ResourceCloser.closeCloseables(List.of(getServerSocket()));
         System.out.println("Server successfully shut down.");
         System.exit(0);
@@ -253,17 +293,32 @@ public class ChatServer {
         // The server is notified that the connection is accepted, along with some extra details.
         // The handleInput() method is then called, which takes the client's socket as an argument.
         private void processConnection() {
+            List<Connection> connectionList = ChatServer.this.getListOfConnections();
             Socket clientSocket = getClientSocket();
             String name = getName();
             if (name == null) {
                 return;
             }
-            clientConnection = new Connection(clientSocket, clientSocket.getInetAddress(), name, getBroadcaster(),
-                    getClientInputStream(), ChatServer.this);
-            ChatServer.this.getListOfConnections().add(getClientConnection());
+            clientConnection = new Connection(clientSocket, clientSocket.getInetAddress(), name, this.getBroadcaster(),
+                    this.getClientInputStream(), ChatServer.this);
+            connectionList.add(this.getClientConnection());
             System.out.println("Connection accepted on ports: " + ChatServer.this.getServerSocket().getLocalPort() + " ; "
-                    + getClientSocket().getPort());
+                    + clientSocket.getPort());
+            for (Connection connection : connectionList) {
+                HandleClientInput.HandleServerOutput.serverBroadcast(connection.getSocket(), "New user has joined! Online users: " +
+                        connectionList.size());
+            }
+            for (String message : getInformationalMessages()) {
+                HandleClientInput.HandleServerOutput.serverBroadcast(clientSocket, message);
+            }
             handleInput();
+        }
+
+        private List<String> getInformationalMessages() {
+            List<String> messages = new ArrayList<>();
+            messages.add("Welcome to the server!");
+            messages.add("Type \"server_pop\" without the speech marks to view the population of the server!");
+            return messages;
         }
 
         private String getName() {
@@ -279,7 +334,12 @@ public class ChatServer {
                 broadcaster.println(1);
                 // If not null, return name. Otherwise, return anonymous format.
                 // Format of anonymous name is so that users can't maliciously/unintentionally impersonate other anonymous users.
-                return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + ChatServer.this.getAnonymousUsers()));
+                // return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + ChatServer.this.getAnonymousUsers()));
+                if (name == null) {
+                    ChatServer.this.increaseAnonCount();
+                    return ("Anonymous " + ChatServer.this.getAnonymousUsers());
+                }
+                return name;
             } catch (IOException e) {
                 ResourceCloser.closeCloseables(List.of(getClientSocket(), broadcaster, clientInputStream));
                 return null;

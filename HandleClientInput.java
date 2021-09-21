@@ -12,11 +12,15 @@ public class HandleClientInput implements Runnable {
 	private final Connection clientConnection;
 	// Private final field which holds an object of the HandleServerOutput inner class, "serverOutputHandler".
 	private final HandleServerOutput serverOutputHandler;
+	// Private final field which holds the client's server.
+	private final ChatServer chatServer;
 
 	public HandleClientInput (Connection clientConnection) {
 		this.clientConnection = clientConnection;
-		// Set the value of the serverOutputHandler field
+		// Set the value of the serverOutputHandler and chatServer fields respectfully.
 		this.serverOutputHandler = new HandleServerOutput();
+		this.chatServer = clientConnection.getChatServer();
+		// Ensure that the list of bad words has been set only once
 	}
 
 	private Connection getClientConnection () {
@@ -26,6 +30,10 @@ public class HandleClientInput implements Runnable {
 	private HandleServerOutput getServerOutputHandler () {
 		// Returns the HandleServerOutput object "serverOutputHandler".
 		return this.serverOutputHandler;
+	}
+
+	private ChatServer getChatServer () {
+		return this.chatServer;
 	}
 
 	private void handleInput () {
@@ -39,32 +47,51 @@ public class HandleClientInput implements Runnable {
 		// -.. ignore it as it is redundant to try and handle it.
 		Connection clientConnection = getClientConnection();
 		Socket clientSocket = clientConnection.getSocket();
+		HandleServerOutput serverOutputHandler = getServerOutputHandler();
 		try {
 			String clientInput;
+			ChatServer server = getChatServer();
 			List<Connection> toRemove = new ArrayList<>();
 			BufferedReader clientInputStream = clientConnection.getClientInputStream();
 			while (!(clientInput = clientInputStream.readLine()).equalsIgnoreCase("exit")) {
+				if (!(processInput(clientConnection, clientInput))) {
+					continue;
+				}
 				synchronized (this) {
-					for (Connection connection : clientConnection.getChatServer().getListOfConnections()) {
-						if (!(getServerOutputHandler().broadcast(connection.getSocket(), clientInput, clientConnection.getName()))) {
+					for (Connection connection : server.getListOfConnections()) {
+						if (!(serverOutputHandler.broadcast(connection.getSocket(), clientInput, clientConnection.getName()))) {
 							toRemove.add(connection);
 						}
 					}
 					for (Connection connection : toRemove) {
-						disconnectClient(connection);
+						connection.disconnectClient();
 					}
 				}
 			}
 		} catch (IOException | NullPointerException exception) {
-			String toBroadcast = "[ERROR] Failed to continue process. Closing connection.";
-			getServerOutputHandler().serverBroadcast(clientSocket, toBroadcast);
-			ResourceCloser.closeCloseables(List.of(clientConnection.getSocket(), clientConnection.getBroadcaster(), clientConnection.getClientInputStream()));
+			String toBroadcast = "Failed to continue process. Closing connection.";
+			HandleServerOutput.serverBroadcast(clientSocket, toBroadcast);
+			clientConnection.disconnectClient();
 		}
 	}
 
-	private void disconnectClient (Connection clientConnection) {
-		clientConnection.getChatServer().getListOfConnections().remove(clientConnection);
-		ResourceCloser.closeCloseables(List.of(clientConnection.getClientInputStream(), clientConnection.getBroadcaster(), clientConnection.getSocket()));
+	private boolean processInput (Connection connection, String clientInput) {
+		switch (clientInput) {
+			case "":
+				return false;
+			case "server_pop":
+				HandleServerOutput.serverBroadcast(connection.getSocket(),
+						"Server population: " + getChatServer().getListOfConnections().size());
+				return false;
+			default:
+				for (String badWord : ChatServer.getListOfBadWords()) {
+					if (clientInput.toLowerCase().contains(badWord)) {
+						connection.warn();
+						return false;
+					}
+				}
+				return true;
+		}
 	}
 
 	public void run () {
@@ -72,9 +99,9 @@ public class HandleClientInput implements Runnable {
 		handleInput();
 	}
 
-	private static class HandleServerOutput {
+	public static class HandleServerOutput {
 
-		private PrintWriter broadcaster;
+		private static PrintWriter broadcaster;
 
 //		private void startBroadcastProcess (String clientInput) {
 //			/*
@@ -103,20 +130,20 @@ public class HandleClientInput implements Runnable {
 			// Return true if successful. If there is an IO exception, it suggests that this specific client has closed their connection.
 			// If this is the case, return false.
 			try {
-				this.broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
+				HandleServerOutput.broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
 				toBroadcast = (name + ": " + toBroadcast);
-				this.broadcaster.println(toBroadcast);
+				HandleServerOutput.broadcaster.println(toBroadcast);
 				return true;
 			} catch (IOException exception) {
 				return false;
 			}
 		}
 
-		private void serverBroadcast (Socket clientSocket, String toBroadcast) {
+		protected static void serverBroadcast (Socket clientSocket, String toBroadcast) {
 			try {
-				this.broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
-				toBroadcast = ("\033[0;31mSERVER: " + toBroadcast + "\033[0m");
-				this.broadcaster.println(toBroadcast);
+				HandleServerOutput.broadcaster = new PrintWriter(clientSocket.getOutputStream(), true);
+				toBroadcast = ("\033[0;31m[SERVER]:\033[0m " + toBroadcast);
+				HandleServerOutput.broadcaster.println(toBroadcast);
 			} catch (IOException ignored) {
 			}
 		}
