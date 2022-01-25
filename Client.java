@@ -7,7 +7,7 @@ import java.util.*;
 public abstract class Client {
 
 	// List of all available ports
-	private final List<Integer> listOfPorts = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
+	private final List<Integer> portsList = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
 	// Holds the server socket
 	private Socket serverSocket;
 	// Holds the host's address
@@ -22,21 +22,13 @@ public abstract class Client {
 	private BufferedReader serverInputReader;
 
 	protected Client () {
-		// Try setting the value of the hostAddress field to localhost.
-		// If an UnknownHost exception occurs, the user is notified and the exit() method is called, which shuts the program down.
-		try {
-			this.hostAddress = InetAddress.getLocalHost();
-		} catch (UnknownHostException exception) {
-			System.out.println("Connection failed: Unable to connect to localhost.");
-			exit();
-		}
 		// The value of serverPort is set to default, which is 14001
 		this.serverPort = 14001;
 	}
 
-	private List<Integer> getListOfPorts() {
+	private List<Integer> getPortsList() {
 		// Returns the list of default server ports
-		return this.listOfPorts;
+		return this.portsList;
 	}
 
 	protected Socket getServerSocket () {
@@ -56,7 +48,19 @@ public abstract class Client {
 		try {
 			this.hostAddress = InetAddress.getByName(address);
 		} catch (UnknownHostException exception) {
+			setDefaultHost();
 			System.out.println("Unable to identify host. Default value has been set.");
+		}
+	}
+
+	private void setDefaultHost() {
+		// Try setting the value of the hostAddress field to localhost.
+		// If an UnknownHost exception occurs, the user is notified and the exit() method is called, which shuts the program down.
+		try {
+			this.hostAddress = InetAddress.getLocalHost();
+		} catch (UnknownHostException exception) {
+			System.out.println("Connection failed: Unable to connect to localhost.");
+			System.exit(-1);
 		}
 	}
 
@@ -123,30 +127,20 @@ public abstract class Client {
 
 	private void getDetails() {
 		BufferedReader userInputReader = getUserInputReader();
-		System.out.println("Please enter a name to proceed with:");
+		BufferedReader serverInputReader = getServerInputReader();
+		PrintWriter broadcaster = getBroadcaster();
 		try {
-			String name = userInputReader.readLine();
-			while (!isLegalName(name, serverInputReader)) {
-				System.out.println("Name is already taken. Please choose another name:");
+			String line = serverInputReader.readLine();
+			String name;
+			do {
+				System.out.println(line);
 				name = userInputReader.readLine();
-			}
-			System.out.println("Name successfully chosen!");
+				broadcaster.println(name);
+			} while (!((line = serverInputReader.readLine()).equals("Name successfully chosen!")));
 		} catch (IOException exception) {
 			System.out.println("Unable to proceed.");
 			exit();
 		}
-	}
-
-	private boolean isLegalName(String name, BufferedReader serverInputReader) {
-		try {
-			getBroadcaster().println(name);
-			return (serverInputReader.readLine().equals("1"));
-		} catch (IOException e) {
-			System.out.println("Unable to proceed. Please try again.");
-			ResourceCloser.closeCloseables(List.of(serverInputReader));
-			exit();
-		}
-		return false;
 	}
 
 	private void validateAndSetValues (String[] args, String toCheck, int index) {
@@ -233,21 +227,22 @@ public abstract class Client {
 		// If there is an IllegalArgument exception, it means that the port entered is outside the accepted range.
 		// The user is notified regarding this matter, and they are also told that the port is being set to default.
 		// The port is set to default and this method is called again.
-		List<Integer> listOfPorts = getListOfPorts();
-		if (head > (listOfPorts.size() - 1)) {
-			System.out.println("\n\033[0;31mConnection failed - please ensure correct address and port have been entered.");
-			System.out.println("Exiting the program...\033[0m");
-			System.exit(1);
-		}
+		List<Integer> listOfPorts = getPortsList();
 		try {
-			System.out.println("Connecting to server port " + listOfPorts.get(head) + "...");
+			System.out.println("Connecting to server " + getHostAddress() + " port " + getServerPort() + "...");
 			this.serverSocket = new Socket(getHostAddress(), getServerPort());
 			System.out.println("\033[0;32mConnection successfully established! Address : port: " + getHostAddress() +
 					" : " + getServerPort() + "\033[0m");
 		} catch (IOException exception) {
-			System.out.println("\033[0;31mConnection failed. Trying again...\033[0m");
-			setServerPort(listOfPorts.get(head));
-			setServerSocket(++head);
+			try {
+				setServerPort(listOfPorts.get(++head));
+				System.out.println("\033[0;31mConnection failed. Trying again...\033[0m");
+				setServerSocket(head);
+			} catch (IndexOutOfBoundsException indexOutOfBoundsException) {
+				System.out.println("\n\033[0;31mConnection failed - please ensure correct address and port have been entered.");
+				System.out.println("Exiting the program...\033[0m");
+				System.exit(1);
+			}
 		} catch (IllegalArgumentException exception) {
 			System.out.println("Port outside of range (0 to 65535). Setting port to default.");
 			setServerPort(listOfPorts.get(0));
@@ -261,7 +256,7 @@ public abstract class Client {
 
 		// Closing getUserInputReader() forces the program to wait for the readLine() in ChatClient under the method of processClientInput().
 		// Therefore, that stream is not being closed.
-		ResourceCloser.closeCloseables(List.of(getBroadcaster(), getServerSocket(), getServerInputReader()));
+		ResourceCloser.closeCloseables(List.of(getServerSocket(), getBroadcaster(), getServerInputReader()));
 		System.out.println("Exiting the program...");
 		System.exit(1);
 	}

@@ -1,17 +1,10 @@
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.List;
 
 public class ChatClient extends Client {
 
-	// Boolean flag to dictate whether the user has requested to exit the program.
-	private boolean exitActivated;
-
 	private ChatClient () {
 		super();
-		// Set the boolean flag to false, which is its default value.
-		this.exitActivated = false;
 	}
 
 
@@ -19,16 +12,6 @@ public class ChatClient extends Client {
 		// Create an instance of the ChatClient class and start the process by calling the startProcess() method and passing on command line args
 		ChatClient client = new ChatClient();
 		client.startProcess(args);
-	}
-
-	private void setExitActivated () {
-		// Sets the exitActivated boolean flag to true
-		this.exitActivated = true;
-	}
-
-	private boolean isExitActivated () {
-		// Returns the state of the boolean flag exitActivated
-		return this.exitActivated;
 	}
 
 	@Override
@@ -43,7 +26,7 @@ public class ChatClient extends Client {
 	private void monitorServerInput () {
 		// Makes an instance of the ServerInputHandler private class and starts a thread which runs that instance.
 		ServerInputHandler serverInputHandler = new ServerInputHandler();
-		Thread serverInputHandlerThread = new Thread(serverInputHandler);
+		Thread serverInputHandlerThread = new Thread(serverInputHandler, "c_serverInputHandler");
 		serverInputHandlerThread.start();
 	}
 
@@ -55,25 +38,17 @@ public class ChatClient extends Client {
 		// If the client enters "exit", then the loop breaks, advancing on to the process of shutting the program down.
 		// Otherwise, the broadcaster set up in the superclass is used to send the client's input to the server.
 		String userInput;
-		while (!isExitActivated()) {
-			try {
-				if ((userInput = super.getUserInputReader().readLine()).equalsIgnoreCase("exit")) break;
+		try {
+			while (!(userInput = super.getUserInputReader().readLine()).equalsIgnoreCase("exit")) {
 				super.getBroadcaster().println(userInput);
-			} catch (IOException exception) {
-				System.out.println("Error occurred with processing input. Please try again.");
-				break;
 			}
+		} catch (IOException exception) {
+			System.out.println("Error occurred with processing input. Please try again.");
 		}
 		// As the loop is broken, the exit() method is called, which shuts the program down.
-		exit();
-	}
-
-	@Override
-	protected void exit () {
-		// Sets the status of the boolean flag exitActivated to true before calling the exit() method in the superclass.
-		setExitActivated();
 		super.exit();
 	}
+
 
 	private class ServerInputHandler implements Runnable {
 		// This runs on a separate thread.
@@ -82,13 +57,12 @@ public class ChatClient extends Client {
 			BufferedReader serverInputStream = ChatClient.super.getServerInputReader();
 			// In an infinite while loop, the server's messages are constantly being received and printed.
 			try {
+				String serverInput;
 				while (true) {
-					String serverInput = serverInputStream.readLine();
-					if (serverInput != null) {
+					serverInput = serverInputStream.readLine();
+					if (!serverInput.isBlank()) {
+//						serverInput = serverInput.replaceAll("[^ -~]+", "");
 						System.out.println(serverInput);
-						if (serverInput.startsWith("[SERVER]") && serverInput.contains("Disconnecting user")) {
-							ChatClient.this.exit();
-						}
 					}
 				}
 				// If there is an IO exception, the program checks whether the exitActivated boolean flag is set to true.
@@ -98,11 +72,8 @@ public class ChatClient extends Client {
 				// The program then calls the exit() method, which shuts the program down.
 				// Finally, try to close the serverInputStream regardless of the outcome of the previous procedure.
 				// If an IO exception occurs in the process of closing the BufferedReader, ignore it as it is redundant to try and handle that.
-			} catch (IOException exception) {
-				if (!ChatClient.this.isExitActivated()) {
-					System.out.println("\033[0;31mServer has shut down.\033[0m");
-					ChatClient.this.exit();
-				}
+			} catch (IOException | NullPointerException exception) {
+				ChatClient.super.exit();
 			}
 		}
 

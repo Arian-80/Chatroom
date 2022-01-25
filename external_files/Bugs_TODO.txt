@@ -1,41 +1,110 @@
-Server shut down clients dont exit												FIXED
-- Partial fix. Will not be closing userInputReader, as by doing so it waits for readLine() in ChatClient processUserInput().
+Ensure every check/validation/verification/etc is done on serverside to maximise security.
+__________________________________________________________________________________________________________________________________________________________________
+__________________________________________________________________________________________________________________________________________________________________
+
+Clients don't exit upon server shutting down.               												FIXED
+
 
 First message after a client disconnects is not relayed to the client sending the message					FIXED
 
 
-Connection list won't update until a message is sent. Problematic when all leave at the same time				ALREADY BEST IMPLEMENTATION
+Connection list won't update until a message is sent. Problematic when all leave at the same time			FIXED
 
 
-Go through every protected/public method and change to private if needed.							DONE
+Go through every protected/public method and change to private if needed.							        DONE
 
 
-Client's messages should be linked to their name - serverside									DONE
-
-__________________________________________________________________________________________________________________________________________________________________
-
-
-Alert everyone on user join.													DONE
-
-
-Upon joining a server, inform the user how many users are in that specific server.						DONE / Informed as "new user" has joined
-
-
-Bot command to view how many users are online at the moment.									DONE / Users can request it
-	- info on how to request provided upon user join									Done
-
-Make sure user's message does not contain "bad" words - filter									DONE
-
-
-Make sure user's message isn't empty.												DONE
+Client's messages should be linked to their name - serverside									            DONE
 
 __________________________________________________________________________________________________________________________________________________________________
 
-
-Spam prevention - timeout between messages											NOT DONE
-
-
-Name length validation - character limit											NOT DONE
+Alert everyone on user join.													                            DONE
 
 
-Make sure every error message is red.												NOT DONE
+Upon joining a server, inform the user how many users are in that specific server.						    DONE / Informed as "new user" has joined
+
+
+Bot command to view how many users are online at the moment.									            DONE / Users can request it
+- info on how to request provided upon user join									                        DONE
+
+
+Make sure user's message isn't empty.												                        DONE
+
+__________________________________________________________________________________________________________________________________________________________________
+
+Spam prevention - cooldown between messages											                        DONE
+
+
+Name length validation - character limit											                        DONE
+
+
+Make sure every error message is red.												                        NOT DONE
+
+
+Allow direct PMs between users.                                                                             DONE
+
+
+Allow tickets to be raised by users by typing /ticket.                                                      NOT DONE
+
+
+Ensure only 1 ticket per user can be raised at any given time.                                              NOT DONE
+
+
+Add informational message regarding tickets and PMs.                                                        NOT DONE 1/2
+
+
+Make sure user's message does not contain "inappropriate" words					                            PARTIALLY DONE
+- Needs improvements. Moved out of the second cycle to the third cycle.
+Categorise bad words into words and phrases.                                                                NOT DONE
+- Check if input contains phrases, and split it into words and check for words                              NOT DONE
+
+
+Go through the Bugs_TODO text file and update it.                                                           DONE
+
+
+Names in speech marks are taken in with the speech marks.                                                   NOT FIXED
+
+
+Provide server admins with instructional messages regarding commands.                                       NOT DONE
+
+
+Make sure no methods are used in constructors - bad practise                                                NOT DONE
+
+
+Make sure classes are loosely coupled - all sout's are done through serverOutputHandler method.             NOT DONE
+
+
+Future: Implement a list that permanently keeps the IP address of all users that have ever connected.       NOT DONE
+
+
+Future: Find a way to get IP addresses and potentially allow bans.                                          NOT DONE
+
+
+Future: /owarn command for offline warning - applied to the IP address.                                     NOT DONE
+
+
+Ensure only needed libraries are imported. Click on the import, then the bulb to replace with individuals.  NOT DONE
+
+
+Implement /report for users to report other users.                                                          NOT DONE
+
+
+Add command for admin to get a list of users with IDs, perhaps with the publicIdentity method.              DONE
+
+
+Add command for admin to kick a user.                                                                       NOT DONE
+
+
+Generalise ServerOutputHandler methods.                                                                     NOT DONE
+
+
+User messages print twice for the admin                                                                     FIXED
+
+
+getClientInputStream() waits for message from the user before being closed upon disconnectClient() call.    FIXED
+
+
+Create a runtime calculator class/method and have it accept a method, so it's general			    NOT DONE
+
+
+Limit the maximum clients that can connect to any one given server, if full redirect to the next server.    NOT DONE

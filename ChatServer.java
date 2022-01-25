@@ -1,4 +1,9 @@
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -6,21 +11,24 @@ import java.util.*;
 public class ChatServer {
 
     // List of all available ports
-    private final List<Integer> listOfPorts = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
+    private final List<Integer> portsList = new ArrayList<>(Arrays.asList(14001, 14002, 14003, 14004, 14005, 14006, 14007, 14008, 14009, 14010));
     // List of all sockets connected to the server
-    private final List<Connection> listOfConnections = new ArrayList<>();
+    private final Map<Integer, Connection> connectionsMap = new HashMap<>();
     // List of all bad words from a text file - singleton instance
-    private static List<String> listOfBadWords = null;
+    private static List<String> badWordsList = null;
     // Number of anonymous users
     private int anonymousUsers = 0;
     // Holds the port number of the server
     private int portNumber;
     // Holds the server socket
     private ServerSocket serverSocket;
+    // Holds an instance of the server output Handler.
+    private final ServerOutputHandler serverOutputHandler;
 
     private ChatServer() {
         // Initialise the fields to their default values
         this.portNumber = 14001;
+        this.serverOutputHandler = new ServerOutputHandler();
     }
 
     public static void main(String[] args) {
@@ -30,13 +38,18 @@ public class ChatServer {
     }
 
     // Getter method for the list of connections, which returns a list of all sockets connected to the server.
-    public List<Connection> getListOfConnections() {
-        return this.listOfConnections;
+    public Map<Integer, Connection> getConnectionsMap() {
+        return this.connectionsMap;
     }
 
     // Getter method for the list of default server ports
-    private List<Integer> getListOfPorts () {
-        return this.listOfPorts;
+    private List<Integer> getPortsList() {
+        return this.portsList;
+    }
+
+    // Getter method for the server output handler.
+    protected ServerOutputHandler getServerOutputHandler () {
+        return this.serverOutputHandler;
     }
 
     private void setServerSocket(int head) {
@@ -45,7 +58,7 @@ public class ChatServer {
         // The program shuts down if the server socket is not successfully set up.
         // If the user enters a port number outside the legal range, the default port value is set and they are informed;..-
         // -.. then this method is called again
-        if (head > (getListOfPorts().size() - 1)) {
+        if (head > (getPortsList().size() - 1)) {
             System.out.println("Maximum number of concurrent servers running reached. (10)\nExiting...");
             System.exit(0);
         }
@@ -54,11 +67,11 @@ public class ChatServer {
             this.serverSocket.setReuseAddress(true);
             System.out.println("Socket setup successful! Port: " + getPortNumber());
         } catch (IOException exception) {
-            setPortNumber(getListOfPorts().get(head));
+            setPortNumber(getPortsList().get(head));
             setServerSocket(++head);
         } catch (IllegalArgumentException exception) {
             System.out.println("Port outside of range (0 to 65535). Setting port automatically.");
-            setPortNumber(getListOfPorts().get(0));
+            setPortNumber(getPortsList().get(0));
             setServerSocket(0);
         }
     }
@@ -84,8 +97,8 @@ public class ChatServer {
     }
 
     // Getter method for the list of bad words.
-    public static List<String> getListOfBadWords () {
-        return ChatServer.listOfBadWords;
+    public static List<String> getBadWordsList() {
+        return ChatServer.badWordsList;
     }
 
     // Setter method for the list of bad words.
@@ -99,10 +112,10 @@ public class ChatServer {
 			Edited slightly to fit the standards of this program.
 			 */
             BufferedReader bufferedReader = new BufferedReader(new FileReader("bad_words.txt"));
-            createListOfBadWords(bufferedReader, ChatServer.listOfBadWords, startDeclaration, endDeclaration);
+            createListOfBadWords(bufferedReader, ChatServer.badWordsList, startDeclaration, endDeclaration);
         } catch (FileNotFoundException e) {
-            System.out.println("\033[0;31mbad_words text file not found. Shutting down.\033[0m");
-            stopServerProcesses();
+            getServerOutputHandler().broadcastToAdmin("\033[0;31mbad_words text file not found. Shutting down.\033[0m");
+            exit();
         }
     }
 
@@ -121,7 +134,8 @@ public class ChatServer {
                 list.add(word.toLowerCase());
             }
         } catch (IOException exception) {
-            System.out.println("\033[0;31mCouldn't complete setting list of all inappropriate words. Shutting down.\033[0m");
+            getServerOutputHandler().broadcastToAdmin("\033[0;31mCouldn't complete setting list of all inappropriate words. Shutting down.\033[0m");
+            exit();
         }
     }
 
@@ -130,17 +144,12 @@ public class ChatServer {
         this.anonymousUsers++;
     }
 
-    // Sets the serverRunning boolean flag to false.
-    protected void stopServerProcesses() {
-        exit();
-    }
-
     private void startProcess(String[] args) {
         // Run a set of methods in order.
         checkArgs(args);
         setServerSocket(0);
-        if (getListOfBadWords() == null) {
-            ChatServer.listOfBadWords = new ArrayList<>();
+        if (getBadWordsList() == null) {
+            ChatServer.badWordsList = new ArrayList<>();
             setListOfBadWords("-----------", "-----------");
         }
         issueConnections();
@@ -157,10 +166,10 @@ public class ChatServer {
                 try {
                     setPortNumber(Integer.parseInt(args[1]));
                 } catch (NumberFormatException | ArrayIndexOutOfBoundsException exception) {
-                    System.out.println("Illegal arguments. Default value has been set.");
+                    getServerOutputHandler().broadcastToAdmin("Illegal arguments. Default value has been set.");
                 }
             } else {
-                System.out.println("Unknown argument: " + args[0]);
+                getServerOutputHandler().broadcastToAdmin("Unknown argument: " + args[0]);
             }
         } catch (ArrayIndexOutOfBoundsException ignored) {
             // Exception occurs if the user has not entered any further arguments, hence ignored.
@@ -177,15 +186,15 @@ public class ChatServer {
         // If the server runs out of memory, the program notifies the user and then calls the exit() method, which shuts the server down.
         // The program runs through the loop again if the server has not been shut down.
         ServerInputHandler serverInputHandler = new ServerInputHandler();
-        Thread serverInputHandlerThread = new Thread(serverInputHandler);
+        Thread serverInputHandlerThread = new Thread(serverInputHandler, "s_serverInputHandler");
         serverInputHandlerThread.start();
         while (true) {
             ConnectionHandler connectionHandler = new ConnectionHandler();
             try {
-                Thread connectionHandlerThread = new Thread(connectionHandler);
+                Thread connectionHandlerThread = new Thread(connectionHandler, "s_clientConnectionHandler");
                 connectionHandlerThread.start();
             } catch (OutOfMemoryError error) {
-                System.out.println("Out of memory or process/resource limits have been reached. Shutting server down.");
+                getServerOutputHandler().broadcastToAdmin("Out of memory or process/resource limits have been reached. Shutting server down.");
                 exit();
             }
         }
@@ -194,8 +203,13 @@ public class ChatServer {
     // This method is run when the server wants to shut down.
     private void exit() {
         // Notifies the user that the server is successfully shut down.
+        var connections = getConnectionsMap().values();
+        getServerOutputHandler().globalServerBroadcast(connections, "Server has shut down.");
+        synchronized (getConnectionsMap()) {
+            Connection.disconnectAllConnections(connections);
+        }
         ResourceCloser.closeCloseables(List.of(getServerSocket()));
-        System.out.println("Server successfully shut down.");
+        getServerOutputHandler().broadcastToAdmin("Server successfully shut down.");
         System.exit(0);
     }
 
@@ -207,16 +221,81 @@ public class ChatServer {
         // If there's an IO exception, the method also returns false.
         private boolean isServerRunning() {
             BufferedReader serverInputStream = new BufferedReader(new InputStreamReader(System.in));
+            String serverInput;
             try {
-                while (true) {
-                    if (serverInputStream.readLine().equalsIgnoreCase("exit")) {
-                        serverInputStream.close();
-                        return false;
-                    }
+                while (!(serverInput = serverInputStream.readLine()).equalsIgnoreCase("/servershutdown")) {
+                    handleServerInput(serverInput);
                 }
             } catch (IOException exception) {
-                System.out.println("Connection failed. Please try again later.");
-                return false;
+                getServerOutputHandler().broadcastToAdmin("Connection failed. Please try again later.");
+            } finally {
+                ResourceCloser.closeCloseables(List.of(serverInputStream));
+            }
+            return false;
+        }
+
+        private void handleServerInput (String input) {
+            String[] inputWords = input.split("\\s+");
+            String startingWord = inputWords[0];
+            int targetID;
+            var serverOutputHandler = ChatServer.this.getServerOutputHandler();
+            switch (startingWord) {
+                case "/apm":
+                    if (inputWords.length < 2 || (targetID = findTargetByID(inputWords[1])) == -1) {
+                        serverOutputHandler.broadcastToAdmin("Incorrect usage of /apm. Type \"/apm <ID> <msg>\".");
+                        return;
+                    }
+                    if (ChatServer.this.getConnectionsMap().containsKey(targetID)) {
+                        serverOutputHandler.adminPrivateMessage(ChatServer.this.getConnectionsMap().get(targetID),
+                                String.join(" ", Arrays.copyOfRange(inputWords, 2, inputWords.length)));
+                        return;
+                    } else {
+                        serverOutputHandler.broadcastToAdmin("User not found.");
+                    }
+                    break;
+                case "/warn":
+                    if (inputWords.length < 3 || (targetID = findTargetByID(inputWords[1])) == -1) {
+                        serverOutputHandler.broadcastToAdmin(
+                                "Incorrect usage of /warn. Type \"/warn <userID> <reason> | <number_of_warnings> <reason>\".");
+                        return;
+                    }
+                    if (ChatServer.this.getConnectionsMap().containsKey(targetID)) {
+                        Connection targetConnection = ChatServer.this.getConnectionsMap().get(targetID);
+                        try {
+                            targetConnection.warn(Integer.parseInt(inputWords[2]),
+                                    String.join(" ", Arrays.copyOfRange(inputWords, 3, inputWords.length)));
+                        } catch (ArrayIndexOutOfBoundsException indexOutOfBoundsException) {
+                            serverOutputHandler.broadcastToAdmin(
+                                    "Incorrect usage of /warn. Type \"/warn <userID> <reason> | <number_of_warnings> <reason>\".");
+                            return;
+                        } catch (NumberFormatException numberFormatException) {
+                            targetConnection.warn(String.join(" ", Arrays.copyOfRange(inputWords, 2, inputWords.length)));
+                        }
+                    } else {
+                        serverOutputHandler.broadcastToAdmin("User not found.");
+                    }
+                    break;
+                case "/getlist":
+                    ChatServer.this.getConnectionsMap().values().stream().map(Connection::getPublicIdentity).forEach(serverOutputHandler::broadcastToAdmin);
+                    break;
+                default:
+                    try {
+                        if (startingWord.charAt(0) == '/') {
+                            serverOutputHandler.broadcastToAdmin("Command " + startingWord.subSequence(1, startingWord.length()) + " not found.");
+                        } else {
+                            serverOutputHandler.adminBroadcast(getConnectionsMap().values(),
+                                    String.join(" ", inputWords));
+                        }
+                    } catch (StringIndexOutOfBoundsException ignored) {
+                    }
+            }
+        }
+
+        private int findTargetByID (String potentialTarget) {
+            try {
+                return Integer.parseInt(potentialTarget);
+            } catch (NumberFormatException exception) {
+                return -1;
             }
         }
 
@@ -293,31 +372,29 @@ public class ChatServer {
         // The server is notified that the connection is accepted, along with some extra details.
         // The handleInput() method is then called, which takes the client's socket as an argument.
         private void processConnection() {
-            List<Connection> connectionList = ChatServer.this.getListOfConnections();
+            Map<Integer, Connection> mapOfConnections = ChatServer.this.getConnectionsMap();
             Socket clientSocket = getClientSocket();
             String name = getName();
+            ServerOutputHandler serverOutputHandler = getServerOutputHandler();
             if (name == null) {
                 return;
             }
-            clientConnection = new Connection(clientSocket, clientSocket.getInetAddress(), name, this.getBroadcaster(),
-                    this.getClientInputStream(), ChatServer.this);
-            connectionList.add(this.getClientConnection());
-            System.out.println("Connection accepted on ports: " + ChatServer.this.getServerSocket().getLocalPort() + " ; "
-                    + clientSocket.getPort());
-            for (Connection connection : connectionList) {
-                HandleClientInput.HandleServerOutput.serverBroadcast(connection.getSocket(), "New user has joined! Online users: " +
-                        connectionList.size());
-            }
-            for (String message : getInformationalMessages()) {
-                HandleClientInput.HandleServerOutput.serverBroadcast(clientSocket, message);
-            }
+            this.clientConnection = new Connection(clientSocket, clientSocket.getInetAddress(), name, getBroadcaster(),
+                    getClientInputStream(), ChatServer.this);
+            mapOfConnections.put(getClientConnection().getUniqueID(), getClientConnection());
+            serverOutputHandler.globalServerBroadcast(mapOfConnections.values(),
+                    getClientConnection().getPublicIdentity() + " has connected! Online users: " +
+                    mapOfConnections.size());
+            getInformationalMessages().forEach(message -> serverOutputHandler.serverBroadcast(this.clientConnection, message));
             handleInput();
         }
 
         private List<String> getInformationalMessages() {
             List<String> messages = new ArrayList<>();
             messages.add("Welcome to the server!");
-            messages.add("Type \"server_pop\" without the speech marks to view the population of the server!");
+            messages.add("Type \"/serverpop\" without the speech marks to view the population of the server!");
+            messages.add("Type \"/pm <ID>\" without the speech marks and <> to PM another user!");
+            messages.add("Type \"exit\" without the speech marks to exit the program.");
             return messages;
         }
 
@@ -326,46 +403,45 @@ public class ChatServer {
             BufferedReader clientInputStream = getClientInputStream();
             PrintWriter broadcaster = getBroadcaster();
             try {
-                name = clientInputStream.readLine();
-                while (!isLegalName(name)) {
-                    broadcaster.println(0);
-                    name = clientInputStream.readLine();
+                broadcaster.println("Please enter a name to proceed with (min 2 characters, max 20):");
+                while (!isLegalName((name = clientInputStream.readLine().trim()))){
+                    broadcaster.println("Name is illegal/already taken. Please choose another name (min 2 characters, max 20):");
                 }
-                broadcaster.println(1);
+                broadcaster.println("Name successfully chosen!");
                 // If not null, return name. Otherwise, return anonymous format.
                 // Format of anonymous name is so that users can't maliciously/unintentionally impersonate other anonymous users.
                 // return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + ChatServer.this.getAnonymousUsers()));
-                if (name == null) {
+                if (name.equals("")) {
                     ChatServer.this.increaseAnonCount();
                     return ("Anonymous " + ChatServer.this.getAnonymousUsers());
                 }
                 return name;
             } catch (IOException e) {
+                broadcaster.println("Unable to proceed.");
                 ResourceCloser.closeCloseables(List.of(getClientSocket(), broadcaster, clientInputStream));
                 return null;
             }
         }
 
         private boolean isLegalName(String name) {
-            for (Connection connection : ChatServer.this.getListOfConnections()) {
-                if (connection.getName().equalsIgnoreCase(name)) {
-                    return false;
-                }
-            }
-            return true;
+            if (name.equals("")) return true;
+            else if (name.length() > 20 || name.length() < 2) return false;
+            else if (name.contains("admin") || name.contains("server")) return false;
+            return ChatServer.this.getConnectionsMap().values().stream().noneMatch(connection -> connection.getName().equalsIgnoreCase(name));
         }
 
         private void handleInput() {
             // An instance of the HandleClientInput class is made.
             // A thread is created and started which runs that instance.
-            HandleClientInput inputHandler = new HandleClientInput(getClientConnection());
-            Thread inputHandlerThread = new Thread(inputHandler);
+            ClientInputHandler inputHandler = new ClientInputHandler(getClientConnection());
+            Thread inputHandlerThread = new Thread(inputHandler, "s_clientInputHandler");
+            getClientConnection().setInputHandlerThread(inputHandlerThread);
             inputHandlerThread.start();
         }
 
         public void run() {
             // Sets up the broadcaster and the client's input stream. If either return false, return as it means they were not set up correctly.
-            if (!setBroadcaster() || !setClientInputStream()) return;
+            if (!(setBroadcaster() && setClientInputStream())) return;
             // Executes the processConnection() method.
             processConnection();
         }
