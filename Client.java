@@ -214,6 +214,7 @@ public abstract class Client {
 	protected void establishConnection (String[] args) {
 		// Calls the validateArgs() method and passes on the command line args and index 0 (the start) as arguments.
 		// Sets up the server socket after the arguments have been validated.
+		setDefaultHost();
 		validateArgs(args, 0);
 		setServerSocket(0);
 	}

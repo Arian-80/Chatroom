@@ -104,7 +104,7 @@ User messages print twice for the admin                                         
 getClientInputStream() waits for message from the user before being closed upon disconnectClient() call.    FIXED
 
 
-Create a runtime calculator class/method and have it accept a method, so it's general			    NOT DONE
+Create a runtime calculator class/method and have it accept a method, so it's general			            NOT DONE
 
 
 Limit the maximum clients that can connect to any one given server, if full redirect to the next server.    NOT DONE

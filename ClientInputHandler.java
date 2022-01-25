@@ -74,7 +74,7 @@ public class ClientInputHandler implements Runnable {
 			AtomicBoolean inappropriateWordFound = new AtomicBoolean(false);
 			synchronized (source) {
 				ChatServer.getBadWordsList().stream()
-						.filter(clientInput::contains)
+						.filter(clientInput.toLowerCase()::contains)
 						.forEach(badWord ->
 						{
 							source.warn("Inappropriate word detected: " + badWord +
