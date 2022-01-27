@@ -6,6 +6,7 @@
 
 # Idea file
 *.idea
+*.iml
 
 # output file
 out/
