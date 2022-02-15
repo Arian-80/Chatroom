@@ -80,11 +80,11 @@ public class Connection {
         return this.warnings;
     }
 
-    private int getMaxWarnings () {
+    private int getMaxWarnings() {
         return this.maxWarnings;
     }
 
-    public void setMaxWarnings (int maxWarnings) {
+    public void setMaxWarnings(int maxWarnings) {
         this.maxWarnings = maxWarnings;
     }
 
@@ -97,33 +97,36 @@ public class Connection {
         processWarn(reason);
     }
 
-    public void warn(String reason) {
+    public void warn(String word) {
         this.warnings++;
-        processWarn(reason);
+        processWarn(word);
     }
 
-    private void processWarn(String reason) {
+    private void processWarn(String word) {
         ServerOutputHandler serverOutputHandler = getChatServer().getServerOutputHandler();
         serverOutputHandler.serverBroadcast(this, "You've been warned. Current warnings: " + getWarnings() +
-                " out of " + getMaxWarnings() + "\nReason: " + reason);
-        serverOutputHandler.broadcastToAdmin(getPublicIdentity() + " was warned for " + reason + ". Current warnings: " + getWarnings());
+                " out of " + getMaxWarnings() + "\nReason: Inappropriate word detected: " + word +
+                ". Please raise a ticket by typing \"/ticket <msg>\" without the speech marks and the <> if you believe this is an error.");
+        serverOutputHandler.broadcastToAdmin(getPublicIdentity() + " was warned for inappropriate word usage: "
+                + word + ". Current warnings: " + getWarnings());
         this.processWarnings(serverOutputHandler);
     }
 
-    public void setWarnings (int warnings) {
+    public void setWarnings(int warnings) {
         this.warnings = warnings;
         this.processWarnings(getChatServer().getServerOutputHandler());
     }
 
-    public boolean hasReachedMaxWarnings () {
+    public boolean hasReachedMaxWarnings() {
         return (this.getWarnings() >= this.getMaxWarnings());
     }
 
     private void processWarnings(ServerOutputHandler serverOutputHandler) {
         if (this.hasReachedMaxWarnings()) {
-            // Find a way to IP ban for short period.
-            // Perhaps get connection's address and store in a blacklist. Upon establishing connection with client, check blacklist
-            // Allow server admin to ban for custom amount of time.
+            /* Find a way to IP ban for short period.
+             * Perhaps get connection's address and store in a blacklist. Upon establishing connection with client, check blacklist.
+             * Allow server admin to ban for custom amount of time.
+             */
             serverOutputHandler.serverBroadcast(this, "Max warnings reached. Disconnecting user..");
             this.disconnectConnection();
             serverOutputHandler.broadcastToAdmin(getPublicIdentity() + " was kicked for having " + this.getWarnings() +

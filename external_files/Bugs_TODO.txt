@@ -57,6 +57,8 @@ Make sure user's message does not contain "inappropriate" words					            
 - Needs improvements. Moved out of the second cycle to the third cycle.
 Categorise bad words into words and phrases.                                                                NOT DONE
 - Check if input contains phrases, and split it into words and check for words                              NOT DONE
+Banned words contained within other words are detected as banned words and the user is warned.              NOT FIXED
+- e.g "wad" in "waddup".
 
 
 Go through the Bugs_TODO text file and update it.                                                           DONE

@@ -48,16 +48,17 @@ public class ChatServer {
     }
 
     // Getter method for the server output handler.
-    protected ServerOutputHandler getServerOutputHandler () {
+    protected ServerOutputHandler getServerOutputHandler() {
         return this.serverOutputHandler;
     }
 
     private void setServerSocket(int head) {
-        // Creates a new server socket and assigns it to the serverSocket field.
-        // This method also allows the socket to be bound even if a previous connection is in the timeout state.
-        // The program shuts down if the server socket is not successfully set up.
-        // If the user enters a port number outside the legal range, the default port value is set and they are informed;..-
-        // -.. then this method is called again
+        /* Creates a new server socket and assigns it to the serverSocket field.
+         * This method also allows the socket to be bound even if a previous connection is in the timeout state.
+         * The program shuts down if the server socket is not successfully set up.
+         * If the user enters a port number outside the legal range, the default port value is set and they are informed;..-
+         * -.. then this method is called again
+         */
         if (head > (getPortsList().size() - 1)) {
             System.out.println("Maximum number of concurrent servers running reached. (10)\nExiting...");
             System.exit(0);
@@ -102,15 +103,15 @@ public class ChatServer {
     }
 
     // Setter method for the list of bad words.
-    private void setListOfBadWords (String startDeclaration, String endDeclaration) {
+    private void setListOfBadWords(String startDeclaration, String endDeclaration) {
         try {
             // Text file containing an inappropriate word on each line - should be located in the same file as the application.
-			/* Text file downloaded from:
-			https://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/
-			"Full List of Bad Words in English (Text File – One word per line)"
-			By James Parker
-			Edited slightly to fit the standards of this program.
-			 */
+            /* Text file downloaded from:
+             * https://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/
+             * "Full List of Bad Words in English (Text File – One word per line)"
+             * By James Parker
+             * Edited slightly to fit the standards of this program.
+             */
             BufferedReader bufferedReader = new BufferedReader(new FileReader("bad_words.txt"));
             createListOfBadWords(bufferedReader, ChatServer.badWordsList, startDeclaration, endDeclaration);
         } catch (FileNotFoundException e) {
@@ -119,7 +120,7 @@ public class ChatServer {
         }
     }
 
-    private void createListOfBadWords (BufferedReader bufferedReader, List<String> list, String startDeclaration, String endDeclaration) {
+    private void createListOfBadWords(BufferedReader bufferedReader, List<String> list, String startDeclaration, String endDeclaration) {
         String word;
         try {
             while (true) {
@@ -139,8 +140,8 @@ public class ChatServer {
         }
     }
 
-    // Increments the anonymousUsers field when an anonymous user joins
     private void increaseAnonCount() {
+        // Increments the anonymousUsers field when an anonymous user joins
         this.anonymousUsers++;
     }
 
@@ -155,12 +156,13 @@ public class ChatServer {
         issueConnections();
     }
 
-    // Checks the string array passed on to it - only the command line args are passed as arguments to this method in this program.
     private void checkArgs(String[] args) {
-        // Checks if the first element is "-csp", and if so, attempts to parse the next element as an integer.
-        // If there is no elements found after the first or if it can not be parsed as an integer, the user notified..-
-        // -.. and hence the value of the port number remains unchanged from the default value.
-        // If the command is not "-csp", the user is told that the command they entered is an unknown argument.
+        /* Checks the string array passed on to it - only the command line args are passed as arguments to this method.
+         * Checks if the first element is "-csp", and if so, attempts to parse the next element as an integer.
+         * If there are no elements found after the first or if it can not be parsed as an integer, the user is notified..-
+         * -.. and hence the value of the port number remains unchanged from the default value.
+         * If the command is not "-csp", the user is told that the command they entered is an unknown argument.
+         */
         try {
             if (args[0].equals("-csp")) {
                 try {
@@ -179,12 +181,13 @@ public class ChatServer {
     private void issueConnections() {
         // This runs on the main thread.
 
-        // Make an instance of the ServerInputHandler inner class, and start a thread that runs that instance.
-        // The program goes through a loop which continues as long as the serverRunning boolean flag is set to true.
-        // Make an instance of the ConnectionHandler inner class, and start a thread that runs that instance.
-        // The function of this class is to process any connections once clients connect.
-        // If the server runs out of memory, the program notifies the user and then calls the exit() method, which shuts the server down.
-        // The program runs through the loop again if the server has not been shut down.
+        /* Make an instance of the ServerInputHandler inner class, and start a thread that runs that instance.
+         * The program goes through a loop which continues as long as the serverRunning boolean flag is set to true.
+         * Make an instance of the ConnectionHandler inner class, and start a thread that runs that instance.
+         * The function of this class is to process any connections once clients connect.
+         * If the server runs out of memory, the program notifies the user and then calls the exit() method, which shuts the server down.
+         * The program runs through the loop again if the server has not been shut down.
+         */
         ServerInputHandler serverInputHandler = new ServerInputHandler();
         Thread serverInputHandlerThread = new Thread(serverInputHandler, "s_serverInputHandler");
         serverInputHandlerThread.start();
@@ -200,8 +203,9 @@ public class ChatServer {
         }
     }
 
-    // This method is run when the server wants to shut down.
     private void exit() {
+        // This method is run when the server wants to shut down.
+
         // Notifies the user that the server is successfully shut down.
         var connections = getConnectionsMap().values();
         getServerOutputHandler().globalServerBroadcast(connections, "Server has shut down.");
@@ -216,9 +220,7 @@ public class ChatServer {
     private class ServerInputHandler implements Runnable {
         // This runs on a separate thread.
 
-        // Constantly takes the user's input in an infinite while loop, and if it equals to exit, the method returns false..-
-        // -.. after closing the BufferedReader.
-        // If there's an IO exception, the method also returns false.
+        // Constantly takes the user's input in an infinite while loop, and if it equals to exit, the method returns false after closing the BufferedReader.
         private boolean isServerRunning() {
             BufferedReader serverInputStream = new BufferedReader(new InputStreamReader(System.in));
             String serverInput;
@@ -234,7 +236,8 @@ public class ChatServer {
             return false;
         }
 
-        private void handleServerInput (String input) {
+        private void handleServerInput(String input) {
+            // Handles server commands entered by the server admin.
             String[] inputWords = input.split("\\s+");
             String startingWord = inputWords[0];
             int targetID;
@@ -291,7 +294,7 @@ public class ChatServer {
             }
         }
 
-        private int findTargetByID (String potentialTarget) {
+        private int findTargetByID(String potentialTarget) {
             try {
                 return Integer.parseInt(potentialTarget);
             } catch (NumberFormatException exception) {
@@ -299,8 +302,9 @@ public class ChatServer {
             }
         }
 
-        // If the method returns false, the exit() method is called, which shuts the server down.
         public void run() {
+            // If isServerRunning() returns false, the exit() method is called, which shuts the server down.
+
             if (!isServerRunning()) {
                 ChatServer.this.exit();
             }
@@ -321,13 +325,14 @@ public class ChatServer {
         private BufferedReader clientInputStream;
 
         private ConnectionHandler() {
-            // Looks for a new connection and accepts it as soon as there is a connection attempt.
-            // The exceptions thrown may be ignored since they only stop the client from connecting, and that is handled..-
-            // -.. on the client side.
+            /* Looks for a new connection and accepts it as soon as there is a connection attempt.
+             * The exceptions thrown are ignored since they only stop the client from connecting, and that is handled..-
+             * -.. on the client side.
+             */
             try {
                 this.clientSocket = ChatServer.this.getServerSocket().accept();
             } catch (IOException | SecurityException ignored) {
-                // Connection is not established with the client, so no need (not possible either) to inform them about this event..-
+                // Connection is not established with the client, so no need to inform them about this event..-
                 // -.. from the server side.
             }
         }
@@ -368,10 +373,9 @@ public class ChatServer {
         }
 
 
-        // The client's socket (connection) is added to the list of connections accepted by the server.
-        // The server is notified that the connection is accepted, along with some extra details.
-        // The handleInput() method is then called, which takes the client's socket as an argument.
         private void processConnection() {
+            // The client's socket (connection) is added to the list of connections accepted by the server.
+            // The server is notified that the connection is accepted, and some extra details are also passed on to the server.
             Map<Integer, Connection> mapOfConnections = ChatServer.this.getConnectionsMap();
             Socket clientSocket = getClientSocket();
             String name = getName();
@@ -384,12 +388,13 @@ public class ChatServer {
             mapOfConnections.put(getClientConnection().getUniqueID(), getClientConnection());
             serverOutputHandler.globalServerBroadcast(mapOfConnections.values(),
                     getClientConnection().getPublicIdentity() + " has connected! Online users: " +
-                    mapOfConnections.size());
+                            mapOfConnections.size());
             getInformationalMessages().forEach(message -> serverOutputHandler.serverBroadcast(this.clientConnection, message));
             handleInput();
         }
 
         private List<String> getInformationalMessages() {
+            // Returns a list containing informational messages printed to the user upon joining the server.
             List<String> messages = new ArrayList<>();
             messages.add("Welcome to the server!");
             messages.add("Type \"/serverpop\" without the speech marks to view the population of the server!");
@@ -404,13 +409,13 @@ public class ChatServer {
             PrintWriter broadcaster = getBroadcaster();
             try {
                 broadcaster.println("Please enter a name to proceed with (min 2 characters, max 20):");
-                while (!isLegalName((name = clientInputStream.readLine().trim()))){
+                while (!isLegalName((name = clientInputStream.readLine().trim()))) {
                     broadcaster.println("Name is illegal/already taken. Please choose another name (min 2 characters, max 20):");
                 }
                 broadcaster.println("Name successfully chosen!");
-                // If not null, return name. Otherwise, return anonymous format.
-                // Format of anonymous name is so that users can't maliciously/unintentionally impersonate other anonymous users.
-                // return Objects.requireNonNullElseGet(name, () -> ("Anonymous " + ChatServer.this.getAnonymousUsers()));
+                /* If not null, return name. Otherwise, return anonymous format.
+                 * The format of the anonymous name ensures users can't maliciously/unintentionally impersonate other anonymous users.
+                 */
                 if (name.equals("")) {
                     ChatServer.this.increaseAnonCount();
                     return ("Anonymous " + ChatServer.this.getAnonymousUsers());
